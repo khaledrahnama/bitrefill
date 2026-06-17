@@ -262,20 +262,27 @@ def get_product(product_id: str):
     return r.json()["data"]
 
 
+def pkg_value(pkg: dict):
+    """Return (api_value, comparable_float) for a package.
+    api_value  — passed as-is to the invoice (str or float)
+    comparable — used for price comparison (always a float)
+    """
+    raw = pkg.get("value", "")
+    try:
+        v = float(raw)
+        return v, v
+    except (ValueError, TypeError):
+        # String denomination (e.g. "1.5GB + YT 2GB", "Mobile Legends 11 Diamonds")
+        comparable = float(pkg.get("price") or pkg.get("amount") or 0)
+        return raw, comparable
+
+
 def best_denomination(products: list, amount_usd: float):
     best_product, best_value, best_diff = None, None, float("inf")
     for p in products[:3]:
         details = get_product(p["id"])
         for pkg in details.get("packages", []):
-            raw = pkg.get("value", "")
-            # Numeric value (airtime, gift cards with dollar amounts)
-            try:
-                v = float(raw)
-                comparable = v
-            except (ValueError, TypeError):
-                # String value (e.g. "Mobile Legends 11 Diamonds") — use price field
-                v = raw
-                comparable = float(pkg.get("price", pkg.get("amount", 0)))
+            v, comparable = pkg_value(pkg)
             if not comparable:
                 continue
             diff = abs(comparable - amount_usd)
@@ -445,7 +452,7 @@ def _run_test(plans_with_names: list, team: bool = False):
     Shows full routing decisions + invoice. Delivery triggers on Lightning settlement.
     """
     product = get_product(TEST_PRODUCT_ID)
-    value = float(product["packages"][0]["value"])
+    value, _ = pkg_value(product["packages"][0])
 
     label = "team basket" if team else "single purchase"
     print(f"\n [TEST MODE] {label} — {len(plans_with_names)} recipient(s)\n")

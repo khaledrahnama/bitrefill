@@ -174,7 +174,7 @@ def _stream_team(intent: str, test_mode: bool, emit):
 
 def _do_test_purchase(plans, names, emit, team: bool):
     product = core.get_product(core.TEST_PRODUCT_ID)
-    value = float(product["packages"][0]["value"])
+    value, _ = core.pkg_value(product["packages"][0])
 
     basket = [{"product_id": core.TEST_PRODUCT_ID, "value": value, "quantity": 1}
               for _ in plans]
