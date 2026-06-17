@@ -30,7 +30,7 @@
     /* Sidebar */
     .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
     .sidebar-section { padding: 1.25rem; border-bottom: 1px solid var(--border); }
-    .sidebar-section h3 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+    .sidebar-section h3 { font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: .85rem; }
 
     /* Mode toggle */
     .mode-toggle { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 3px; }
@@ -84,7 +84,7 @@
 
     /* Cards */
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+    .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); font-size: .78rem; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
     .card-body { padding: 1rem; }
 
     /* Plan card */
@@ -135,7 +135,7 @@
     .autopay-row label { font-size: .82rem; color: var(--muted); }
 
     .product-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .product-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+    .product-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); font-size: .78rem; font-weight: 600; color: var(--muted); }
     .product-body { padding: 1rem; }
     .product-name { font-weight: 700; font-size: 1rem; margin-bottom: .4rem; }
     .product-price { font-size: 1.6rem; font-weight: 800; color: var(--accent); margin-bottom: .5rem; }
@@ -178,24 +178,15 @@
   <aside class="sidebar">
     <!-- Tab bar -->
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('router')">🌍 Value Router</button>
-      <button class="tab-btn" onclick="switchTab('shop')">🛒 Shop & Pay</button>
+      <button class="tab-btn active" onclick="switchTab('send')">Send</button>
+      <button class="tab-btn" onclick="switchTab('travel')">Travel</button>
+      <button class="tab-btn" onclick="switchTab('shop')">Shop</button>
     </div>
 
-    <!-- VALUE ROUTER TAB -->
-    <div id="tab-router" class="tab-pane active">
-      <!-- Mode -->
+    <!-- SEND TAB -->
+    <div id="tab-send" class="tab-pane active">
       <div class="sidebar-section">
-        <h3>Mode</h3>
-        <div class="mode-toggle">
-          <button class="mode-btn active" id="btn-single" onclick="setMode('single')">Single</button>
-          <button class="mode-btn" id="btn-team" onclick="setMode('team')">Team Basket</button>
-        </div>
-      </div>
-
-      <!-- Input -->
-      <div class="sidebar-section">
-        <h3>Intent</h3>
+        <h3>What do you need?</h3>
         <div class="input-wrap">
           <textarea id="intent-input" rows="4"
             placeholder="Send $10 to my brother in Lagos"></textarea>
@@ -207,35 +198,67 @@
             <span class="slider"></span>
           </label>
         </div>
-        <button class="btn-run" id="run-btn" onclick="runAgent()">
-          Run Agent →
-        </button>
+        <button class="btn-run" id="run-btn" onclick="runAgent()">Run →</button>
       </div>
 
-      <!-- Examples -->
       <div class="sidebar-section">
-        <h3>Examples — Single</h3>
-        <div class="examples" id="examples-single">
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $10 to my brother in Lagos"><span class="flag">🇳🇬</span> Send $10 to my brother in Lagos</div>
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="I just landed in Bangkok, get me eSIM data"><span class="flag">✈️</span> I just landed in Bangkok, get me eSIM data</div>
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Top up $20 for my sister in Manila"><span class="flag">🇵🇭</span> Top up $20 for my sister in Manila</div>
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Buy a $25 Steam gift card"><span class="flag">🎮</span> Buy a $25 Steam gift card</div>
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $15 of airtime to Nairobi"><span class="flag">🇰🇪</span> Send $15 of airtime to Nairobi</div>
-        </div>
-        <div class="examples" id="examples-team" style="display:none">
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Alice in Lagos $10, Bob in Manila $15, Carlos in Mexico City $10"><span class="flag">🌍</span> Alice in Lagos, Bob in Manila, Carlos in Mexico</div>
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Priya in Mumbai $20, Chen in Jakarta $15, Fatima in Cairo $10"><span class="flag">🌏</span> Priya in Mumbai, Chen in Jakarta, Fatima in Cairo</div>
-          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Marco in Milan $25, Sofia in Berlin $20, Lena in Paris $15"><span class="flag">🇪🇺</span> Marco in Milan, Sofia in Berlin, Lena in Paris</div>
+        <h3>Examples</h3>
+        <div class="examples">
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $10 airtime to my mom in Lagos">Send $10 airtime to mom in Lagos</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Top up $20 for my cousin in Manila">Top up $20 for cousin in Manila</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $15 to my friend in Nairobi">Send $15 to friend in Nairobi</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="$30 mobile credit for someone in Mumbai">$30 mobile credit in Mumbai</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Top up $10 for my brother in Cairo">Top up $10 in Cairo</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $20 to Jakarta">Send $20 to Jakarta</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Mobile Legends 11 Diamonds">Mobile Legends 11 Diamonds</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="$25 Steam gift card">$25 Steam gift card</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="$15 Netflix gift card">$15 Netflix gift card</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $12 to Accra Ghana">Send $12 to Accra, Ghana</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="$10 Google Play gift card">$10 Google Play gift card</div>
+          <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="PUBG Mobile 60 UC">PUBG Mobile 60 UC</div>
         </div>
       </div>
     </div>
 
-    <!-- SHOP & PAY TAB -->
+    <!-- TRAVEL TAB -->
+    <div id="tab-travel" class="tab-pane">
+      <div class="sidebar-section">
+        <h3>Where are you going?</h3>
+        <div class="input-wrap">
+          <textarea id="travel-input" rows="4"
+            placeholder="Flying to Japan next week, 7 days"></textarea>
+        </div>
+        <div class="toggle-row" style="margin-bottom:.75rem">
+          <label for="travel-test-toggle">Test mode (no real spend)</label>
+          <label class="toggle">
+            <input type="checkbox" id="travel-test-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <button class="btn-run" id="travel-run-btn" onclick="runTravel()">Get connected →</button>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Examples</h3>
+        <div class="examples">
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Flying to Japan next week, 7 days">Flying to Japan, 7 days</div>
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Solo trip to Thailand for 2 weeks">Solo trip to Thailand, 2 weeks</div>
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Business trip to Singapore, 3 days, need fast data">Business trip to Singapore, 3 days</div>
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Backpacking Morocco for 10 days">Backpacking Morocco, 10 days</div>
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Visiting family in Mexico City for a week">Visiting family in Mexico City, 1 week</div>
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Road trip through Turkey for 2 weeks">Road trip through Turkey, 2 weeks</div>
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Layover in Dubai for 2 days">Layover in Dubai, 2 days</div>
+          <div class="example-pill" onclick="useTravelExample(this.dataset.v)" data-v="Going to Indonesia for a month">Going to Indonesia for a month</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHOP TAB -->
     <div id="tab-shop" class="tab-pane">
       <div class="sidebar-section">
-        <h3>What do you want to buy?</h3>
+        <h3>Find on Amazon, pay with crypto</h3>
         <input class="shop-input" id="shop-query" type="text"
-          placeholder="cheapest glasses for iPhone 14 on Amazon" />
+          placeholder="cheapest screen protector for iPhone 14" />
         <div class="autopay-row">
           <label for="autopay-toggle">Auto-pay (no confirmation)</label>
           <label class="toggle">
@@ -250,18 +273,18 @@
             <span class="slider"></span>
           </label>
         </div>
-        <button class="btn-run" id="shop-search-btn" onclick="shopSearch()">
-          Search & Find Price →
-        </button>
+        <button class="btn-run" id="shop-search-btn" onclick="shopSearch()">Search →</button>
       </div>
 
       <div class="sidebar-section">
         <h3>Examples</h3>
         <div class="examples">
-          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="cheapest glasses screen protector for iPhone 14 amazon"><span class="flag">📱</span> Cheapest glasses for iPhone 14</div>
-          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="best budget wireless earbuds amazon under $30"><span class="flag">🎧</span> Budget wireless earbuds under $30</div>
-          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="cheap phone stand desk amazon"><span class="flag">🖥️</span> Cheap phone desk stand</div>
-          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="USB-C cable fast charging amazon cheapest"><span class="flag">🔌</span> Fast charging USB-C cable</div>
+          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="cheapest screen protector for iPhone 14 amazon">Screen protector for iPhone 14</div>
+          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="best budget wireless earbuds amazon under $30">Wireless earbuds under $30</div>
+          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="portable phone charger 10000mah amazon">10,000mAh power bank</div>
+          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="USB-C cable braided fast charging amazon">Braided USB-C cable</div>
+          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="laptop stand adjustable amazon cheap">Adjustable laptop stand</div>
+          <div class="example-pill" onclick="useShopExample(this.dataset.v)" data-v="mechanical keyboard under $50 amazon">Mechanical keyboard under $50</div>
         </div>
       </div>
     </div>
@@ -275,16 +298,14 @@
     </div>
     <div class="panel-body" id="panel-body">
       <div class="empty-state" id="empty-state">
-        <div class="icon">🌍</div>
-        <p>Type an intent or pick an example, then hit <strong>Run Agent</strong>.</p>
-        <p style="margin-top:.25rem">The agent will reason about the best instrument for the destination and purchase autonomously.</p>
+        <div class="icon" style="font-size:1.5rem;opacity:.25">→</div>
+        <p>Describe what you need, or pick an example.</p>
       </div>
     </div>
   </div>
 </main>
 
 <script>
-  let mode = 'single';
   let running = false;
   let es = null;
 
@@ -298,27 +319,10 @@
   }
   loadBalance();
 
-  // ── Mode ─────────────────────────────────────────────────────────────────────
-  function setMode(m) {
-    mode = m;
-    document.getElementById('btn-single').classList.toggle('active', m === 'single');
-    document.getElementById('btn-team').classList.toggle('active', m === 'team');
-    document.getElementById('examples-single').style.display = m === 'single' ? '' : 'none';
-    document.getElementById('examples-team').style.display = m === 'team' ? '' : 'none';
-    const ph = m === 'team'
-      ? 'Alice in Lagos $10, Bob in Manila $15, Carlos in Mexico City $10'
-      : 'Send $10 to my brother in Lagos';
-    document.getElementById('intent-input').placeholder = ph;
-    if (m === 'team' && !document.getElementById('intent-input').value) {
-      document.getElementById('intent-input').value = '';
-    }
-  }
+  function useExample(v) { document.getElementById('intent-input').value = v; }
+  function useTravelExample(v) { document.getElementById('travel-input').value = v; }
 
-  function useExample(v) {
-    document.getElementById('intent-input').value = v;
-  }
-
-  // ── Run ──────────────────────────────────────────────────────────────────────
+  // ── Send ─────────────────────────────────────────────────────────────────────
   function runAgent() {
     const intent = document.getElementById('intent-input').value.trim();
     if (!intent || running) return;
@@ -331,7 +335,29 @@
     document.getElementById('run-btn').classList.add('loading');
     clearPanel();
 
-    const url = `/api/run?intent=${encodeURIComponent(intent)}&team=${mode==='team'}&test=${testMode}`;
+    const url = `/api/run?intent=${encodeURIComponent(intent)}&team=false&test=${testMode}`;
+    es = new EventSource(url);
+    es.onmessage = (e) => handleEvent(JSON.parse(e.data));
+    es.onerror = () => { addLog('Connection error'); finish('error'); };
+  }
+
+  // ── Travel ───────────────────────────────────────────────────────────────────
+  function runTravel() {
+    const raw = document.getElementById('travel-input').value.trim();
+    if (!raw || running) return;
+    const testMode = document.getElementById('travel-test-toggle').checked;
+
+    // Reframe as an eSIM intent so the agent picks the right product
+    const intent = `Get me an eSIM data plan for this trip: ${raw}`;
+
+    running = true;
+    setStatus('thinking');
+    document.getElementById('travel-run-btn').disabled = true;
+    document.getElementById('travel-run-btn').textContent = 'Routing...';
+    document.getElementById('travel-run-btn').classList.add('loading');
+    clearPanel();
+
+    const url = `/api/run?intent=${encodeURIComponent(intent)}&team=false&test=${testMode}`;
     es = new EventSource(url);
     es.onmessage = (e) => handleEvent(JSON.parse(e.data));
     es.onerror = () => { addLog('Connection error'); finish('error'); };
@@ -391,10 +417,15 @@
   function finish(s) {
     running = false;
     setStatus(s);
-    const btn = document.getElementById('run-btn');
-    btn.disabled = false;
-    btn.textContent = 'Run Agent →';
-    btn.classList.remove('loading');
+    ['run-btn', 'travel-run-btn'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    });
+    document.getElementById('run-btn').textContent = 'Run →';
+    const tb = document.getElementById('travel-run-btn');
+    if (tb) tb.textContent = 'Get connected →';
     if (es) { es.close(); es = null; }
     loadBalance();
   }
@@ -443,7 +474,7 @@
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <div class="card-header">🧠 Routing Decision</div>
+      <div class="card-header">Routing decision</div>
       <div class="card-body">
         <div class="plan-grid">
           <div class="plan-item"><div class="key">Destination</div><div class="val">${plan.country_name} (${plan.country_code})</div></div>
@@ -473,7 +504,7 @@
           ${r.reasoning ? `<div class="recipient-meta" style="margin-top:.3rem;font-style:italic">${r.reasoning}</div>` : ''}
         </div>
       </div>`).join('');
-    card.innerHTML = `<div class="card-header">🧠 Team Routing — ${recipients.length} Recipients</div>${rows}`;
+    card.innerHTML = `<div class="card-header">Team routing — ${recipients.length} recipients</div>${rows}`;
     body.appendChild(card);
     body.scrollTop = body.scrollHeight;
   }
@@ -500,7 +531,7 @@
         ` : ''}
         <div style="font-size:.7rem;color:var(--muted);margin-top:.5rem">Order: ${r.order_id}</div>
       </div>`).join('');
-    card.innerHTML = `<div class="card-header" style="color:var(--green)">✓ Fulfilled</div>${items}`;
+    card.innerHTML = `<div class="card-header" style="color:var(--green)">Delivered</div>${items}`;
     body.appendChild(card);
     body.scrollTop = body.scrollHeight;
   }
@@ -519,7 +550,7 @@
         </div>
       </div>`).join('');
     card.innerHTML = `
-      <div class="card-header">📋 Invoice Created</div>
+      <div class="card-header">Invoice created</div>
       ${rList}
       <div style="padding:1rem;border-top:1px solid var(--border)">
         <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">Invoice ID</div>
@@ -552,11 +583,10 @@
 
   // ── Tab switcher ─────────────────────────────────────────────────────────────
   function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', ['router','shop'][i] === tab));
-    document.getElementById('tab-router').classList.toggle('active', tab === 'router');
-    document.getElementById('tab-shop').classList.toggle('active', tab === 'shop');
+    const tabs = ['send', 'travel', 'shop'];
+    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', tabs[i] === tab));
+    tabs.forEach(t => document.getElementById('tab-' + t).classList.toggle('active', t === tab));
     clearPanel();
-    setStatus('');
     document.getElementById('panel-title').textContent = 'Ready';
     document.getElementById('status-dot').className = 'status-dot';
   }
@@ -598,13 +628,13 @@
         es.close();
         setStatus('done');
         document.getElementById('shop-search-btn').disabled = false;
-        document.getElementById('shop-search-btn').textContent = 'Search & Find Price →';
+        document.getElementById('shop-search-btn').textContent = 'Search →';
       }
     };
     es.onerror = () => {
       es.close();
       document.getElementById('shop-search-btn').disabled = false;
-      document.getElementById('shop-search-btn').textContent = 'Search & Find Price →';
+      document.getElementById('shop-search-btn').textContent = 'Search →';
       if (!shopDone) setStatus('error');
     };
   }
@@ -617,7 +647,7 @@
     card.className = 'product-card';
     card.id = 'product-result-card';
     card.innerHTML = `
-      <div class="product-header">🛒 Product Found — Amazon</div>
+      <div class="product-header">Found on Amazon</div>
       <div class="product-body">
         <div class="product-name">${product.product_name}</div>
         <div class="product-price">$${product.price_usd?.toFixed(2)}</div>
@@ -673,7 +703,7 @@
     const card = document.createElement('div');
     card.className = 'gift-card-result';
     card.innerHTML = `
-      <h3>✓ Amazon Gift Card Delivered!</h3>
+      <h3>Gift card delivered</h3>
       <div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem">
         $${data.amount} gift card — use this code to pay on Amazon
       </div>

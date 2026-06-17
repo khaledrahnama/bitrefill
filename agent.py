@@ -91,13 +91,17 @@ GIFT_CARD_BRANDS = ["amazon", "steam", "netflix", "spotify", "uber", "starbucks"
 # ── LLM routing via Ollama (llama3.2, runs locally, free) ─────────────────────
 
 ROUTING_PROMPT = """You are a cross-border value routing agent. Rules:
-- airtime for developing markets (Africa, SE Asia, LatAm) — works on any handset
-- esim for travelers / roaming / landing
-- gift_card for specific brands (Amazon, Steam, Netflix) or US/EU recipients
-- Pick the dominant mobile operator for the country.
+- airtime: sending mobile credit to someone in a developing market (Africa, SE Asia, LatAm). A country must be mentioned.
+- esim: traveler needs data for a trip or just landed somewhere.
+- gift_card: buying a brand gift card (Steam, Netflix, Google Play) OR a gaming top-up (Mobile Legends, PUBG, Roblox, Fortnite, etc.) for the user themselves.
+
+IMPORTANT: If the intent is buying a gaming top-up or gift card for the user themselves with NO recipient country mentioned, set country_code to "" and country_name to "International". Use the product name as the search_query exactly.
 
 Return ONLY this JSON (no markdown, no explanation):
 {"country_code":"NG","country_name":"Nigeria","product_type":"airtime","search_query":"MTN Nigeria","amount_usd":10,"reasoning":"MTN has 70% market share in Nigeria"}
+
+Example for gaming top-up with no country:
+{"country_code":"","country_name":"International","product_type":"gift_card","search_query":"Mobile Legends Diamonds International","amount_usd":0.18,"reasoning":"User wants Mobile Legends diamonds, no country specified, using international product"}
 
 Intent: """
 
@@ -152,7 +156,7 @@ def _sanitize_plan(plan: dict, fallback_intent: str = "") -> dict:
     cn = plan.get("country_name", "Nigeria")
     pt = plan.get("product_type", "airtime")
     if pt not in ("airtime", "esim", "gift_card"):
-        pt = "airtime"
+        pt = "gift_card" if cc == "" else "airtime"
     # Rebuild search_query if missing or contains non-ASCII
     sq = plan.get("search_query", "")
     if not sq or not sq.isascii():
@@ -161,8 +165,9 @@ def _sanitize_plan(plan: dict, fallback_intent: str = "") -> dict:
         elif pt == "esim":
             sq = f"eSIM {cn}"
         else:
-            sq = f"gift card {cn}"
-    amount = float(plan.get("amount_usd") or detect_amount(fallback_intent))
+            # For gift cards with no country, use the raw intent as the query
+            sq = fallback_intent if fallback_intent else f"gift card"
+    amount = float(plan.get("amount_usd") or detect_amount(fallback_intent) or 10.0)
     plan.update({"country_code": cc, "country_name": cn,
                  "product_type": pt, "search_query": sq, "amount_usd": amount})
     return plan
@@ -262,10 +267,18 @@ def best_denomination(products: list, amount_usd: float):
     for p in products[:3]:
         details = get_product(p["id"])
         for pkg in details.get("packages", []):
-            v = float(pkg.get("value", 0))
-            if v <= 0:
+            raw = pkg.get("value", "")
+            # Numeric value (airtime, gift cards with dollar amounts)
+            try:
+                v = float(raw)
+                comparable = v
+            except (ValueError, TypeError):
+                # String value (e.g. "Mobile Legends 11 Diamonds") — use price field
+                v = raw
+                comparable = float(pkg.get("price", pkg.get("amount", 0)))
+            if not comparable:
                 continue
-            diff = abs(v - amount_usd)
+            diff = abs(comparable - amount_usd)
             if diff < best_diff:
                 best_diff, best_product, best_value = diff, details, v
     return best_product, best_value
