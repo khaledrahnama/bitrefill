@@ -13,6 +13,7 @@ import queue
 import threading
 import requests as req
 from flask import Flask, request, Response, jsonify, send_from_directory
+import search as product_search
 
 # ── Import agent logic ─────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(__file__))
@@ -248,6 +249,88 @@ def api_run():
 def api_balance():
     bal = core.get_balance()
     return jsonify(bal)
+
+
+@app.route("/api/shop")
+def api_shop():
+    """Search for a product and return price + link before any purchase."""
+    query = request.args.get("q", "")
+    if not query:
+        return jsonify({"error": "q required"}), 400
+
+    def generate():
+        yield sse({"type": "log", "message": f"🔍 Searching for: {query}"})
+        product = product_search.find_product(query)
+        yield sse({"type": "product_found", "data": product})
+        yield sse({"type": "done"})
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/api/shop/buy")
+def api_shop_buy():
+    """Purchase an Amazon gift card for the given amount."""
+    amount = float(request.args.get("amount", 10))
+    auto_pay = request.args.get("auto_pay", "false").lower() == "true"
+    test = request.args.get("test", "false").lower() == "true"
+
+    def generate():
+        try:
+            bal = core.get_balance()
+            yield sse({"type": "balance", "value": bal["balance"], "currency": bal["currency"]})
+
+            if not test and bal["balance"] < amount:
+                yield sse({"type": "error", "message": f"Insufficient balance (€{bal['balance']}) for ${amount} gift card."})
+                yield sse({"type": "done"})
+                return
+
+            if test:
+                product_id = core.TEST_PRODUCT_ID
+                buy_amount = 10.0
+                yield sse({"type": "log", "message": "[TEST] Using test product"})
+            else:
+                # Find Amazon gift card on Bitrefill
+                yield sse({"type": "log", "message": "🔍 Finding Amazon gift card on Bitrefill..."})
+                products = core.search_products("Amazon gift card", "US", limit=5)
+                if not products:
+                    yield sse({"type": "error", "message": "Amazon gift card not found on Bitrefill."})
+                    yield sse({"type": "done"})
+                    return
+
+                product_detail, buy_amount = core.best_denomination(products, amount)
+                if not product_detail:
+                    yield sse({"type": "error", "message": "No matching denomination found."})
+                    yield sse({"type": "done"})
+                    return
+
+                product_id = product_detail["id"]
+                yield sse({"type": "log", "message": f"✓ Found: {product_detail['name']} — ${buy_amount}"})
+
+            yield sse({"type": "log", "message": "💳 Creating invoice and paying autonomously..."})
+            invoice = core.create_invoice(
+                [{"product_id": product_id, "value": buy_amount, "quantity": 1}], pay=False
+            )
+            core.pay_invoice(invoice["id"])
+            yield sse({"type": "invoice", "id": invoice["id"]})
+
+            yield sse({"type": "log", "message": "⏳ Polling for delivery..."})
+            orders = core.poll_invoice(invoice["id"])
+            redemption = orders[0].get("redemption_info", {})
+
+            yield sse({"type": "purchased", "data": {
+                "amount": buy_amount,
+                "code": redemption.get("code", "N/A"),
+                "pin": redemption.get("pin"),
+                "order_id": orders[0]["id"],
+            }})
+        except Exception as e:
+            yield sse({"type": "error", "message": str(e)})
+        finally:
+            yield sse({"type": "done"})
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 if __name__ == "__main__":

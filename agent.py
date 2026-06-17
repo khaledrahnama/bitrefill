@@ -236,7 +236,10 @@ def _fallback_team_parse(intent: str) -> list[dict]:
 def get_balance():
     r = requests.get(f"{BASE}/accounts/balance", headers=HEADERS)
     r.raise_for_status()
-    return r.json()["data"]
+    data = r.json()["data"]
+    if data.get("currency") != "BTC":
+        data["balance"] = round(data["balance"] / 100, 2)
+    return data
 
 
 def search_products(q: str, country_code: str = None, limit: int = 5):
