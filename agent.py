@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import time
+import json
 import requests
 
 BITREFILL_KEY = os.environ["BITREFILL_API_KEY"]
@@ -87,20 +88,57 @@ PRODUCT_KEYWORDS = {
 GIFT_CARD_BRANDS = ["amazon", "steam", "netflix", "spotify", "uber", "starbucks", "google play", "apple", "itunes"]
 
 
-# ── Intent parsing ─────────────────────────────────────────────────────────────
+# ── LLM routing via Ollama (llama3.2, runs locally, free) ─────────────────────
 
-def detect_country(text: str):
-    for keyword, (code, name) in COUNTRY_MAP.items():
-        if keyword in text:
-            return code, name
-    return "NG", "Nigeria"
+ROUTING_PROMPT = """You are a cross-border value routing agent. Rules:
+- airtime for developing markets (Africa, SE Asia, LatAm) — works on any handset
+- esim for travelers / roaming / landing
+- gift_card for specific brands (Amazon, Steam, Netflix) or US/EU recipients
+- Pick the dominant mobile operator for the country.
+
+Return ONLY this JSON (no markdown, no explanation):
+{"country_code":"NG","country_name":"Nigeria","product_type":"airtime","search_query":"MTN Nigeria","amount_usd":10,"reasoning":"MTN has 70% market share in Nigeria"}
+
+Intent: """
+
+TEAM_PROMPT = """You are a cross-border value routing agent. Rules:
+- airtime for developing markets (Africa, SE Asia, LatAm)
+- esim for travelers / roaming
+- gift_card for specific brands or US/EU recipients
+
+Return ONLY a JSON array (no markdown, no explanation):
+[{"name":"Alice","country_code":"NG","country_name":"Nigeria","product_type":"airtime","search_query":"MTN Nigeria","amount_usd":10,"reasoning":"MTN dominant in Nigeria"},{"name":"Bob","country_code":"PH","country_name":"Philippines","product_type":"airtime","search_query":"Globe Philippines","amount_usd":15,"reasoning":"Globe has 47% share in PH"}]
+
+Intent: """
 
 
-def detect_product_type(text: str):
-    for ptype, keywords in PRODUCT_KEYWORDS.items():
-        if any(k in text for k in keywords):
-            return ptype
-    return "airtime"
+OLLAMA_URL = "http://localhost:11434/api/generate"
+
+
+def _llm(prompt: str) -> str:
+    r = requests.post(OLLAMA_URL, json={
+        "model": "llama3.2",
+        "prompt": prompt,
+        "stream": False,
+    }, timeout=60)
+    r.raise_for_status()
+    return r.json()["response"].strip()
+
+
+def _extract_json(text: str):
+    text = re.sub(r"```(?:json)?", "", text).strip("`").strip()
+    # Try the whole string first
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    # Find last valid JSON object or array
+    for match in reversed(list(re.finditer(r"(\[[\s\S]*?\]|\{[\s\S]*?\})", text))):
+        try:
+            return json.loads(match.group(1))
+        except Exception:
+            continue
+    raise ValueError(f"No valid JSON found in LLM response: {text[:200]}")
 
 
 def detect_amount(text: str, default: float = 10.0):
@@ -108,61 +146,88 @@ def detect_amount(text: str, default: float = 10.0):
     return float(m.group(1)) if m else default
 
 
-def build_search_query(product_type: str, country_code: str, country_name: str, text: str):
-    if product_type == "airtime":
-        return OPERATOR_MAP.get(country_code, f"airtime {country_name}")
-    if product_type == "esim":
-        return f"eSIM {country_name}"
-    brand = next((b for b in GIFT_CARD_BRANDS if b in text), None)
-    return f"{brand} gift card" if brand else f"gift card {country_name}"
+def _sanitize_plan(plan: dict, fallback_intent: str = "") -> dict:
+    """Ensure required fields are clean ASCII strings."""
+    cc = plan.get("country_code", "NG")
+    cn = plan.get("country_name", "Nigeria")
+    pt = plan.get("product_type", "airtime")
+    if pt not in ("airtime", "esim", "gift_card"):
+        pt = "airtime"
+    # Rebuild search_query if missing or contains non-ASCII
+    sq = plan.get("search_query", "")
+    if not sq or not sq.isascii():
+        if pt == "airtime":
+            sq = OPERATOR_MAP.get(cc, f"airtime {cn}")
+        elif pt == "esim":
+            sq = f"eSIM {cn}"
+        else:
+            sq = f"gift card {cn}"
+    amount = float(plan.get("amount_usd") or detect_amount(fallback_intent))
+    plan.update({"country_code": cc, "country_name": cn,
+                 "product_type": pt, "search_query": sq, "amount_usd": amount})
+    return plan
 
 
 def parse_intent(intent: str) -> dict:
-    text = intent.lower()
-    country_code, country_name = detect_country(text)
-    product_type = detect_product_type(text)
-    amount = detect_amount(text)
-    query = build_search_query(product_type, country_code, country_name, text)
-    return {
-        "country_code": country_code,
-        "country_name": country_name,
-        "product_type": product_type,
-        "search_query": query,
-        "amount_usd": amount,
-    }
+    print(" 🧠 Reasoning about destination and instrument...", flush=True)
+    raw = _llm(ROUTING_PROMPT + intent)
+    try:
+        plan = _extract_json(raw)
+        return _sanitize_plan(plan, intent)
+    except Exception:
+        print("   (LLM parse failed, falling back to keyword routing)")
+        return _fallback_parse(intent)
 
 
 def parse_team_intent(intent: str) -> list[dict]:
-    """
-    Parse multi-recipient intent.
-    Accepts patterns like:
-      "Alice in Lagos $10, Bob in Manila $15, Carlos in Mexico City $10"
-      "Alice (Lagos, $10) | Bob (Manila, $15)"
-    Returns a list of recipient dicts.
-    """
-    # Split on commas or pipes or semicolons
+    print(" 🧠 Reasoning about recipients and instruments...", flush=True)
+    raw = _llm(TEAM_PROMPT + intent)
+    try:
+        recipients = _extract_json(raw)
+        if isinstance(recipients, dict):
+            recipients = [recipients]
+        for i, r in enumerate(recipients):
+            if not r.get("name"):
+                r["name"] = f"Recipient {i+1}"
+            _sanitize_plan(r)
+        return recipients
+    except Exception:
+        print("   (LLM parse failed, falling back to keyword routing)")
+        return _fallback_team_parse(intent)
+
+
+def _fallback_parse(intent: str) -> dict:
+    text = intent.lower()
+    country_code, country_name = "NG", "Nigeria"
+    for keyword, (code, name) in COUNTRY_MAP.items():
+        if keyword in text:
+            country_code, country_name = code, name
+            break
+    product_type = "airtime"
+    for ptype, keywords in PRODUCT_KEYWORDS.items():
+        if any(k in text for k in keywords):
+            product_type = ptype
+            break
+    amount = detect_amount(text)
+    query = OPERATOR_MAP.get(country_code, f"airtime {country_name}") if product_type == "airtime" \
+        else f"eSIM {country_name}" if product_type == "esim" \
+        else f"gift card {country_name}"
+    return {"country_code": country_code, "country_name": country_name,
+            "product_type": product_type, "search_query": query,
+            "amount_usd": amount, "reasoning": "keyword-based fallback"}
+
+
+def _fallback_team_parse(intent: str) -> list[dict]:
     segments = re.split(r"[,|;]", intent)
     recipients = []
-    for seg in segments:
+    for i, seg in enumerate(segments):
         seg = seg.strip()
         if not seg:
             continue
-        text = seg.lower()
-        country_code, country_name = detect_country(text)
-        product_type = detect_product_type(text)
-        amount = detect_amount(text, default=10.0)
-        query = build_search_query(product_type, country_code, country_name, text)
-        # Try to extract a name (first capitalized word)
+        plan = _fallback_parse(seg)
         name_match = re.match(r"([A-Z][a-z]+)", seg)
-        name = name_match.group(1) if name_match else f"Recipient {len(recipients)+1}"
-        recipients.append({
-            "name": name,
-            "country_code": country_code,
-            "country_name": country_name,
-            "product_type": product_type,
-            "search_query": query,
-            "amount_usd": amount,
-        })
+        plan["name"] = name_match.group(1) if name_match else f"Recipient {i+1}"
+        recipients.append(plan)
     return recipients
 
 
