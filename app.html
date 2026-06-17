@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Value Router — App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --surface2: #1a1a26;
+      --border: #1e1e2e; --accent: #f7931a; --accent2: #7c3aed;
+      --text: #e8e8f0; --muted: #6b6b80; --green: #22c55e;
+      --red: #ef4444; --blue: #60a5fa; --radius: 12px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Nav */
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: rgba(10,10,15,.9); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 10; }
+    .logo { font-weight: 800; font-size: 1.05rem; letter-spacing: -.02em; }
+    .logo span { color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 1rem; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: .85rem; transition: color .2s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+    .chip-balance { background: var(--surface2); border: 1px solid var(--border); border-radius: 999px; padding: .3rem .75rem; font-size: .75rem; font-family: monospace; color: var(--muted); }
+    .chip-balance span { color: var(--accent); font-weight: 600; }
+
+    /* Layout */
+    main { display: grid; grid-template-columns: 380px 1fr; flex: 1; height: calc(100vh - 57px); overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+    .sidebar-section { padding: 1.25rem; border-bottom: 1px solid var(--border); }
+    .sidebar-section h3 { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+    /* Mode toggle */
+    .mode-toggle { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 3px; }
+    .mode-btn { flex: 1; padding: .5rem; border: none; background: transparent; color: var(--muted); border-radius: 8px; font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .2s; }
+    .mode-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+    /* Input */
+    .input-wrap { position: relative; margin-bottom: .75rem; }
+    textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: .75rem 1rem; color: var(--text); font-size: .88rem; font-family: inherit; resize: none; line-height: 1.5; transition: border-color .2s; outline: none; }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    /* Example pills */
+    .examples { display: flex; flex-direction: column; gap: .4rem; }
+    .example-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .75rem; font-size: .78rem; color: var(--muted); cursor: pointer; transition: all .2s; line-height: 1.4; }
+    .example-pill:hover { border-color: var(--accent); color: var(--text); }
+    .example-pill .flag { margin-right: .3rem; }
+
+    /* Test toggle */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-row label { font-size: .82rem; color: var(--muted); }
+    .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 999px; transition: .2s; }
+    .slider::before { content: ""; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider::before { transform: translateX(16px); }
+
+    /* Run button */
+    .btn-run { width: 100%; padding: .75rem; background: var(--accent); color: #000; border: none; border-radius: 10px; font-weight: 700; font-size: .92rem; cursor: pointer; transition: opacity .2s, transform .1s; margin-top: .5rem; }
+    .btn-run:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+    .btn-run:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-run.loading { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+    /* Main panel */
+    .panel { display: flex; flex-direction: column; overflow: hidden; }
+    .panel-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .panel-header h2 { font-size: .95rem; font-weight: 600; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+    .status-dot.thinking { background: var(--accent); animation: pulse 1s infinite; }
+    .status-dot.done { background: var(--green); }
+    .status-dot.error { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .panel-body { flex: 1; overflow-y: auto; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Empty state */
+    .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; color: var(--muted); text-align: center; padding: 3rem; }
+    .empty-state .icon { font-size: 2.5rem; opacity: .4; }
+    .empty-state p { font-size: .88rem; max-width: 260px; line-height: 1.6; }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+    .card-body { padding: 1rem; }
+
+    /* Plan card */
+    .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+    .plan-item { background: var(--surface2); border-radius: 8px; padding: .6rem .75rem; }
+    .plan-item .key { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .2rem; }
+    .plan-item .val { font-size: .88rem; font-weight: 600; }
+    .plan-item.full { grid-column: 1/-1; }
+    .instrument-badge { display: inline-flex; align-items: center; gap: .35rem; background: rgba(247,147,26,.12); border: 1px solid rgba(247,147,26,.25); color: var(--accent); border-radius: 6px; padding: .2rem .6rem; font-size: .78rem; font-weight: 600; }
+
+    /* Recipient card */
+    .recipient-row { display: flex; align-items: flex-start; gap: .75rem; padding: .85rem 1rem; border-bottom: 1px solid var(--border); }
+    .recipient-row:last-child { border-bottom: none; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; flex-shrink: 0; }
+    .recipient-info { flex: 1; min-width: 0; }
+    .recipient-name { font-weight: 600; font-size: .9rem; margin-bottom: .2rem; }
+    .recipient-meta { font-size: .78rem; color: var(--muted); }
+    .badge-instrument { font-size: .72rem; color: var(--muted); }
+
+    /* Delivery card */
+    .delivery-item { padding: 1rem; border-bottom: 1px solid var(--border); }
+    .delivery-item:last-child { border-bottom: none; }
+    .delivery-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+    .delivered-badge { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.25); color: var(--green); border-radius: 6px; padding: .2rem .6rem; font-size: .72rem; font-weight: 700; }
+    .code-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: .65rem 1rem; font-family: monospace; font-size: .9rem; color: var(--accent); letter-spacing: .05em; display: flex; align-items: center; justify-content: space-between; margin-top: .5rem; }
+    .copy-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: .75rem; transition: color .2s; }
+    .copy-btn:hover { color: var(--text); }
+
+    /* Log */
+    .log-line { font-size: .78rem; color: var(--muted); font-family: monospace; padding: .2rem 0; display: flex; align-items: center; gap: .5rem; }
+    .log-line::before { content: "›"; color: var(--border); }
+
+    /* Progress */
+    .progress-bar-wrap { height: 4px; background: var(--border); border-radius: 999px; overflow: hidden; margin-top: .5rem; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s; }
+
+    /* Pending */
+    .pending-card { border: 1px dashed var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: center; }
+    .pending-card .title { font-weight: 600; margin-bottom: .4rem; }
+    .pending-card .sub { font-size: .82rem; color: var(--muted); line-height: 1.6; }
+    .invoice-id { font-family: monospace; font-size: .78rem; color: var(--accent); background: var(--surface2); padding: .3rem .6rem; border-radius: 6px; display: inline-block; margin-top: .5rem; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" style="text-decoration:none"><div class="logo">Value<span>Router</span></div></a>
+  <div class="nav-links">
+    <a href="/" >Home</a>
+    <a href="/demo" class="active">App</a>
+    <a href="https://github.com/khaledrahnama/bitrefill" target="_blank">GitHub</a>
+    <div class="chip-balance">Balance: <span id="bal-display">...</span></div>
+  </div>
+</nav>
+
+<main>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <!-- Mode -->
+    <div class="sidebar-section">
+      <h3>Mode</h3>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-single" onclick="setMode('single')">Single</button>
+        <button class="mode-btn" id="btn-team" onclick="setMode('team')">Team Basket</button>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="sidebar-section">
+      <h3>Intent</h3>
+      <div class="input-wrap">
+        <textarea id="intent-input" rows="4"
+          placeholder="Send $10 to my brother in Lagos"></textarea>
+      </div>
+      <div class="toggle-row" style="margin-bottom:.75rem">
+        <label for="test-toggle">Test mode (no real spend)</label>
+        <label class="toggle">
+          <input type="checkbox" id="test-toggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <button class="btn-run" id="run-btn" onclick="runAgent()">
+        Run Agent →
+      </button>
+    </div>
+
+    <!-- Examples -->
+    <div class="sidebar-section">
+      <h3>Examples — Single</h3>
+      <div class="examples" id="examples-single">
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $10 to my brother in Lagos"><span class="flag">🇳🇬</span> Send $10 to my brother in Lagos</div>
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="I just landed in Bangkok, get me eSIM data"><span class="flag">✈️</span> I just landed in Bangkok, get me eSIM data</div>
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Top up $20 for my sister in Manila"><span class="flag">🇵🇭</span> Top up $20 for my sister in Manila</div>
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Buy a $25 Steam gift card"><span class="flag">🎮</span> Buy a $25 Steam gift card</div>
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Send $15 of airtime to Nairobi"><span class="flag">🇰🇪</span> Send $15 of airtime to Nairobi</div>
+      </div>
+      <div class="examples" id="examples-team" style="display:none">
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Alice in Lagos $10, Bob in Manila $15, Carlos in Mexico City $10"><span class="flag">🌍</span> Alice in Lagos, Bob in Manila, Carlos in Mexico</div>
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Priya in Mumbai $20, Chen in Jakarta $15, Fatima in Cairo $10"><span class="flag">🌏</span> Priya in Mumbai, Chen in Jakarta, Fatima in Cairo</div>
+        <div class="example-pill" onclick="useExample(this.dataset.v)" data-v="Marco in Milan $25, Sofia in Berlin $20, Lena in Paris $15"><span class="flag">🇪🇺</span> Marco in Milan, Sofia in Berlin, Lena in Paris</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2 id="panel-title">Ready</h2>
+      <div class="status-dot" id="status-dot"></div>
+    </div>
+    <div class="panel-body" id="panel-body">
+      <div class="empty-state" id="empty-state">
+        <div class="icon">🌍</div>
+        <p>Type an intent or pick an example, then hit <strong>Run Agent</strong>.</p>
+        <p style="margin-top:.25rem">The agent will reason about the best instrument for the destination and purchase autonomously.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  let mode = 'single';
+  let running = false;
+  let es = null;
+
+  // ── Balance ──────────────────────────────────────────────────────────────────
+  async function loadBalance() {
+    try {
+      const r = await fetch('/api/balance');
+      const d = await r.json();
+      document.getElementById('bal-display').textContent = `${d.balance} ${d.currency}`;
+    } catch { document.getElementById('bal-display').textContent = 'N/A'; }
+  }
+  loadBalance();
+
+  // ── Mode ─────────────────────────────────────────────────────────────────────
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btn-single').classList.toggle('active', m === 'single');
+    document.getElementById('btn-team').classList.toggle('active', m === 'team');
+    document.getElementById('examples-single').style.display = m === 'single' ? '' : 'none';
+    document.getElementById('examples-team').style.display = m === 'team' ? '' : 'none';
+    const ph = m === 'team'
+      ? 'Alice in Lagos $10, Bob in Manila $15, Carlos in Mexico City $10'
+      : 'Send $10 to my brother in Lagos';
+    document.getElementById('intent-input').placeholder = ph;
+    if (m === 'team' && !document.getElementById('intent-input').value) {
+      document.getElementById('intent-input').value = '';
+    }
+  }
+
+  function useExample(v) {
+    document.getElementById('intent-input').value = v;
+  }
+
+  // ── Run ──────────────────────────────────────────────────────────────────────
+  function runAgent() {
+    const intent = document.getElementById('intent-input').value.trim();
+    if (!intent || running) return;
+    const testMode = document.getElementById('test-toggle').checked;
+
+    running = true;
+    setStatus('thinking');
+    document.getElementById('run-btn').disabled = true;
+    document.getElementById('run-btn').textContent = 'Running...';
+    document.getElementById('run-btn').classList.add('loading');
+    clearPanel();
+
+    const url = `/api/run?intent=${encodeURIComponent(intent)}&team=${mode==='team'}&test=${testMode}`;
+    es = new EventSource(url);
+    es.onmessage = (e) => handleEvent(JSON.parse(e.data));
+    es.onerror = () => { addLog('Connection error'); finish('error'); };
+  }
+
+  function handleEvent(ev) {
+    switch (ev.type) {
+      case 'balance':
+        document.getElementById('bal-display').textContent = `${ev.value} ${ev.currency}`;
+        break;
+      case 'log':
+        addLog(ev.message);
+        break;
+      case 'plan':
+        renderPlan(ev.data);
+        break;
+      case 'team_plan':
+        renderTeamPlan(ev.data);
+        break;
+      case 'invoice':
+        addInvoice(ev.id);
+        break;
+      case 'progress':
+        updateProgress(ev.delivered, ev.total);
+        break;
+      case 'delivered':
+        renderDelivered(ev.recipients);
+        finish('done');
+        break;
+      case 'pending':
+        renderPending(ev.invoice_id, ev.recipients);
+        finish('done');
+        break;
+      case 'error':
+        addError(ev.message);
+        finish('error');
+        break;
+      case 'done':
+        finish('done');
+        break;
+    }
+  }
+
+  // ── UI helpers ───────────────────────────────────────────────────────────────
+  function clearPanel() {
+    const body = document.getElementById('panel-body');
+    body.innerHTML = '';
+  }
+
+  function setStatus(s) {
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot ' + s;
+    const titles = { thinking: 'Thinking…', done: 'Done', error: 'Error' };
+    document.getElementById('panel-title').textContent = titles[s] || s;
+  }
+
+  function finish(s) {
+    running = false;
+    setStatus(s);
+    const btn = document.getElementById('run-btn');
+    btn.disabled = false;
+    btn.textContent = 'Run Agent →';
+    btn.classList.remove('loading');
+    if (es) { es.close(); es = null; }
+    loadBalance();
+  }
+
+  function addLog(msg) {
+    const body = document.getElementById('panel-body');
+    // Remove empty state
+    document.getElementById('empty-state')?.remove();
+    const el = document.createElement('div');
+    el.className = 'log-line';
+    el.textContent = msg;
+    body.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function addError(msg) {
+    const body = document.getElementById('panel-body');
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.style.borderColor = 'rgba(239,68,68,.3)';
+    el.innerHTML = `<div class="card-header" style="color:var(--red)">⚠ Error</div><div class="card-body" style="font-size:.88rem;color:var(--muted)">${msg}</div>`;
+    body.appendChild(el);
+  }
+
+  function addInvoice(id) {
+    addLog(`Invoice: ${id}`);
+  }
+
+  let progressEl = null;
+  function updateProgress(delivered, total) {
+    if (!progressEl) {
+      const body = document.getElementById('panel-body');
+      progressEl = document.createElement('div');
+      progressEl.innerHTML = `<div style="font-size:.8rem;color:var(--muted)" id="prog-label">0/${total} delivered</div><div class="progress-bar-wrap"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>`;
+      body.appendChild(progressEl);
+    }
+    document.getElementById('prog-label').textContent = `${delivered}/${total} delivered`;
+    document.getElementById('prog-bar').style.width = `${(delivered/total)*100}%`;
+  }
+
+  function renderPlan(plan) {
+    const body = document.getElementById('panel-body');
+    document.getElementById('empty-state')?.remove();
+    const icons = { airtime: '📱', esim: '📡', gift_card: '🎁' };
+    const labels = { airtime: 'Airtime', esim: 'eSIM Data', gift_card: 'Gift Card' };
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-header">🧠 Routing Decision</div>
+      <div class="card-body">
+        <div class="plan-grid">
+          <div class="plan-item"><div class="key">Destination</div><div class="val">${plan.country_name} (${plan.country_code})</div></div>
+          <div class="plan-item"><div class="key">Amount</div><div class="val">$${plan.amount_usd}</div></div>
+          <div class="plan-item"><div class="key">Instrument</div><div class="val"><span class="instrument-badge">${icons[plan.product_type]||''} ${labels[plan.product_type]||plan.product_type}</span></div></div>
+          <div class="plan-item"><div class="key">Search</div><div class="val" style="font-size:.82rem">${plan.search_query||'—'}</div></div>
+          ${plan.reasoning ? `<div class="plan-item full"><div class="key">Reasoning</div><div class="val" style="font-size:.82rem;font-weight:400;color:var(--muted)">${plan.reasoning}</div></div>` : ''}
+        </div>
+      </div>`;
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function renderTeamPlan(recipients) {
+    const body = document.getElementById('panel-body');
+    document.getElementById('empty-state')?.remove();
+    const icons = { airtime: '📱', esim: '📡', gift_card: '🎁' };
+    const card = document.createElement('div');
+    card.className = 'card';
+    const rows = recipients.map(r => `
+      <div class="recipient-row">
+        <div class="avatar">${(r.name||'?')[0].toUpperCase()}</div>
+        <div class="recipient-info">
+          <div class="recipient-name">${r.name}</div>
+          <div class="recipient-meta">${r.country_name} · ${icons[r.product_type]||''} ${r.product_type} · $${r.amount_usd}</div>
+          <div class="recipient-meta" style="margin-top:.2rem">${r.search_query||''}</div>
+          ${r.reasoning ? `<div class="recipient-meta" style="margin-top:.3rem;font-style:italic">${r.reasoning}</div>` : ''}
+        </div>
+      </div>`).join('');
+    card.innerHTML = `<div class="card-header">🧠 Team Routing — ${recipients.length} Recipients</div>${rows}`;
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function renderDelivered(recipients) {
+    const body = document.getElementById('panel-body');
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.borderColor = 'rgba(34,197,94,.2)';
+    const items = recipients.map(r => `
+      <div class="delivery-item">
+        <div class="delivery-header">
+          <span class="delivered-badge">✓ DELIVERED</span>
+          <span style="font-weight:600;font-size:.9rem">${r.name}${r.country ? ' — ' + r.country : ''}</span>
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">${r.product} · $${r.value}</div>
+        ${r.code && r.code !== 'pending' ? `
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">Redemption Code</div>
+          <div class="code-box">
+            <span id="code-${r.order_id}">${r.code}</span>
+            <button class="copy-btn" onclick="copyCode('${r.order_id}','${r.code}')">Copy</button>
+          </div>
+          ${r.pin ? `<div style="font-size:.78rem;margin-top:.4rem;color:var(--muted)">PIN: <span style="color:var(--text);font-family:monospace">${r.pin}</span></div>` : ''}
+        ` : ''}
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.5rem">Order: ${r.order_id}</div>
+      </div>`).join('');
+    card.innerHTML = `<div class="card-header" style="color:var(--green)">✓ Fulfilled</div>${items}`;
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function renderPending(invoiceId, recipients) {
+    const body = document.getElementById('panel-body');
+    const card = document.createElement('div');
+    card.className = 'card';
+    const rList = recipients.map(r => `
+      <div class="recipient-row">
+        <div class="avatar" style="background:var(--surface2);color:var(--muted);font-size:.75rem">⏳</div>
+        <div class="recipient-info">
+          <div class="recipient-name">${r.name} — ${r.country}</div>
+          <div class="recipient-meta">${r.product} · $${r.value}</div>
+          ${r.reasoning ? `<div class="recipient-meta" style="font-style:italic">${r.reasoning}</div>` : ''}
+        </div>
+      </div>`).join('');
+    card.innerHTML = `
+      <div class="card-header">📋 Invoice Created</div>
+      ${rList}
+      <div style="padding:1rem;border-top:1px solid var(--border)">
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">Invoice ID</div>
+        <div class="code-box"><span>${invoiceId}</span></div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:.75rem;line-height:1.6">
+          Settle the Lightning invoice to trigger delivery. The agent will poll
+          <code style="font-size:.75rem;color:var(--accent)">orders[0].status</code>
+          until delivered and return each redemption code — no human clicks needed.
+        </div>
+      </div>`;
+    body.appendChild(card);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function copyCode(id, code) {
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = event.target;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    });
+  }
+
+  // Keyboard shortcut
+  document.getElementById('intent-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) runAgent();
+  });
+</script>
+</body>
+</html>
