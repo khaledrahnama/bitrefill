@@ -168,8 +168,15 @@ def _sanitize_plan(plan: dict, fallback_intent: str = "") -> dict:
             # For gift cards with no country, use the raw intent as the query
             sq = fallback_intent if fallback_intent else f"gift card"
     amount = float(plan.get("amount_usd") or detect_amount(fallback_intent) or 10.0)
+    # Extract phone number from intent if present (e.g. "+234 800 123 4567")
+    phone = plan.get("phone_number") or ""
+    if not phone:
+        m = re.search(r"\+?\d[\d\s\-]{7,14}\d", fallback_intent)
+        if m:
+            phone = re.sub(r"[\s\-]", "", m.group())
     plan.update({"country_code": cc, "country_name": cn,
-                 "product_type": pt, "search_query": sq, "amount_usd": amount})
+                 "product_type": pt, "search_query": sq,
+                 "amount_usd": amount, "phone_number": phone})
     return plan
 
 
@@ -263,18 +270,22 @@ def get_product(product_id: str):
 
 
 def pkg_value(pkg: dict):
-    """Return (api_value, comparable_float) for a package.
-    api_value  — passed as-is to the invoice (str or float)
-    comparable — used for price comparison (always a float)
+    """Return (api_value, comparable_usd) for a package.
+    api_value      — the exact value to send to the invoice API (preserved as-is)
+    comparable_usd — USD price used only for selecting the best match
     """
     raw = pkg.get("value", "")
+    # Always compare by price (USD), never by value (may be local currency or descriptive text)
+    comparable = float(pkg.get("price") or pkg.get("amount") or 0)
+    # Preserve the original type for the API: numeric string → int, already-int → int, text → str
     try:
-        v = float(raw)
-        return v, v
+        api_value = int(float(raw))  # "5000" or 5000 → 5000
+        # If the string had a decimal part, keep it as-is (e.g. "10.5" → 10 would be wrong)
+        if str(api_value) != str(raw).rstrip('0').rstrip('.'):
+            api_value = raw
     except (ValueError, TypeError):
-        # String denomination (e.g. "1.5GB + YT 2GB", "Mobile Legends 11 Diamonds")
-        comparable = float(pkg.get("price") or pkg.get("amount") or 0)
-        return raw, comparable
+        api_value = raw  # descriptive string, pass as-is
+    return api_value, comparable
 
 
 def best_denomination(products: list, amount_usd: float):
@@ -291,16 +302,25 @@ def best_denomination(products: list, amount_usd: float):
     return best_product, best_value
 
 
-def create_invoice(products_payload: list, pay: bool = True):
+def create_invoice(products_payload: list, pay: bool = True, phone_number: str = None):
     """
-    products_payload: list of {"product_id": str, "value": float, "quantity": int}
+    products_payload: list of {"product_id": str, "value": ..., "quantity": int}
+    phone_number: required for airtime top-ups
     """
     body = {
         "products": products_payload,
         "payment_method": "balance",
         "auto_pay": pay,
     }
+    if phone_number:
+        body["phone_number"] = phone_number
     r = requests.post(f"{BASE}/invoices", headers=HEADERS, json=body)
+    if r.status_code == 400:
+        err = r.json()
+        msg = err.get("message", "Bad request")
+        if "phone_number" in msg.lower():
+            raise ValueError("This product requires a recipient phone number. Please include it in your intent, e.g. '+234 800 000 0000'.")
+        raise ValueError(f"Bitrefill API error: {msg}")
     r.raise_for_status()
     return r.json()["data"]
 

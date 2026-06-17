@@ -191,6 +191,9 @@
           <textarea id="intent-input" rows="4"
             placeholder="Send $10 to my brother in Lagos"></textarea>
         </div>
+        <input class="shop-input" id="phone-input" type="tel"
+          placeholder="Recipient phone (for airtime, e.g. +234 800 123 4567)"
+          style="margin-bottom:.75rem" />
         <div class="toggle-row" style="margin-bottom:.75rem">
           <label for="test-toggle">Test mode (no real spend)</label>
           <label class="toggle">
@@ -335,7 +338,8 @@
     document.getElementById('run-btn').classList.add('loading');
     clearPanel();
 
-    const url = `/api/run?intent=${encodeURIComponent(intent)}&team=false&test=${testMode}`;
+    const phone = (document.getElementById('phone-input').value || '').trim();
+    const url = `/api/run?intent=${encodeURIComponent(intent)}&team=false&test=${testMode}&phone=${encodeURIComponent(phone)}`;
     es = new EventSource(url);
     es.onmessage = (e) => handleEvent(JSON.parse(e.data));
     es.onerror = () => { addLog('Connection error'); finish('error'); };

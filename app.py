@@ -28,7 +28,7 @@ def sse(data: dict):
     return f"data: {json.dumps(data)}\n\n"
 
 
-def stream_agent(intent: str, team: bool, test_mode: bool):
+def stream_agent(intent: str, team: bool, test_mode: bool, phone: str = ""):
     """Run agent in a thread, yield SSE events."""
     q = queue.Queue()
 
@@ -40,7 +40,7 @@ def stream_agent(intent: str, team: bool, test_mode: bool):
             if team:
                 _stream_team(intent, test_mode, emit)
             else:
-                _stream_single(intent, test_mode, emit)
+                _stream_single(intent, test_mode, emit, phone)
         except Exception as e:
             emit("error", message=str(e))
         finally:
@@ -59,7 +59,7 @@ def stream_agent(intent: str, team: bool, test_mode: bool):
             break
 
 
-def _stream_single(intent: str, test_mode: bool, emit):
+def _stream_single(intent: str, test_mode: bool, emit, phone: str = ""):
     emit("log", message=f"Intent: {intent}")
 
     bal = core.get_balance()
@@ -91,8 +91,10 @@ def _stream_single(intent: str, test_mode: bool, emit):
     emit("selected", product=product["name"], value=value)
     emit("log", message="Creating invoice and paying from balance...")
 
+    phone_number = phone or plan.get("phone_number") or None
     invoice = core.create_invoice(
-        [{"product_id": product["id"], "value": value, "quantity": 1}], pay=False
+        [{"product_id": product["id"], "value": value, "quantity": 1}],
+        pay=False, phone_number=phone_number
     )
     core.pay_invoice(invoice["id"])
     emit("invoice", id=invoice["id"])
@@ -237,10 +239,11 @@ def api_run():
     intent = request.args.get("intent", "")
     team = request.args.get("team", "false").lower() == "true"
     test = request.args.get("test", "true").lower() == "true"
+    phone = request.args.get("phone", "").strip()
     if not intent:
         return jsonify({"error": "intent required"}), 400
     return Response(
-        stream_agent(intent, team, test),
+        stream_agent(intent, team, test, phone),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
