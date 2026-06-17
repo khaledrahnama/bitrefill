@@ -5,7 +5,7 @@
 Give it a plain-English intent. It picks the right instrument — airtime, gift card, or eSIM — for the destination country, then purchases it autonomously from your Bitrefill balance. No forms. No human clicks.
 
 🎥 **[Watch the demo](https://youtu.be/YOUR_DEMO_LINK)**  
-🌐 **[Landing page](https://YOUR_GITHUB.github.io/value-router)**
+🌐 **[Landing page](https://khaledrahnama.github.io/value-router)**
 
 ---
 
@@ -34,7 +34,7 @@ python agent.py "Buy a $25 Steam gift card"
 ### Install
 
 ```bash
-git clone https://github.com/YOUR_GITHUB/value-router
+git clone https://github.com/khaledrahnama/bitrefill
 cd value-router
 pip install requests
 ```
